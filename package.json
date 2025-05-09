@@ -4,6 +4,7 @@
   "description": "Backend service for issues related to Konflux",
   "main": "dist/server.js",
   "type": "module",
+  "license": "MIT",
   "scripts": {
     "build": "tsup src/server.ts --out-dir dist --format esm --clean",
     "dev": "tsx watch src/server.ts",
@@ -20,7 +21,8 @@
     "express": "^4.18.2",
     "express-promise-router": "^4.1.1",
     "helmet": "^7.0.0",
-    "winston": "^3.10.0"
+    "winston": "^3.10.0",
+    "ws": "^8.18.2"
   },
   "devDependencies": {
     "@types/cors": "^2.8.13",
@@ -37,5 +39,6 @@
     "tsup": "^8.4.0",
     "tsx": "^4.19.4",
     "typescript": "^5.1.6"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
