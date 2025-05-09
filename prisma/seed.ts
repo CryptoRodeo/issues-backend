@@ -4,9 +4,8 @@ async function main() {
   const scope_failed_build_frontend = await prisma.issueScope.create({
     data: { resourceType: "component", resourceName: "frontend-ui", resourceNamespace: "team-alpha" }
   });
-  await prisma.issue.create({
+  const failed_build_frontend = await prisma.issue.create({
     data: {
-      id: "failed-build-frontend",
       title: "Frontend build failed due to dependency conflict",
       description: "The build process for the frontend component failed because of conflicting versions of React dependencies",
       severity: "major",
@@ -27,9 +26,8 @@ async function main() {
   const scope_failed_test_api = await prisma.issueScope.create({
     data: { resourceType: "component", resourceName: "backend-api", resourceNamespace: "team-alpha" }
   });
-  await prisma.issue.create({
+  const failed_test_api = await prisma.issue.create({
     data: {
-      id: "failed-test-api",
       title: "API integration tests failing on database connection",
       description: "Integration tests for the API component are failing because the database connection is timing out",
       severity: "critical",
@@ -50,9 +48,8 @@ async function main() {
   const scope_release_failed_production = await prisma.issueScope.create({
     data: { resourceType: "application", resourceName: "e-commerce-app", resourceNamespace: "team-beta" }
   });
-  await prisma.issue.create({
+  const release_failed_production = await prisma.issue.create({
     data: {
-      id: "release-failed-production",
       title: "Production release failed during deployment",
       description: "The production release of the e-commerce application failed during the deployment phase due to resource limits",
       severity: "critical",
@@ -73,9 +70,8 @@ async function main() {
   const scope_dependency_update_needed_frontend = await prisma.issueScope.create({
     data: { resourceType: "component", resourceName: "frontend-ui", resourceNamespace: "team-alpha" }
   });
-  await prisma.issue.create({
+  const dependency_update_needed_frontend = await prisma.issue.create({
     data: {
-      id: "dependency-update-needed-frontend",
       title: "Frontend dependency updates available",
       description: "Security vulnerabilities found in current dependencies. Updates are available and recommended.",
       severity: "major",
@@ -98,7 +94,6 @@ async function main() {
   });
   await prisma.issue.create({
     data: {
-      id: "pipeline-outdated",
       title: "Pipeline tasks using deprecated API versions",
       description: "Several pipeline tasks are using API versions that will be deprecated in the next Konflux update",
       severity: "minor",
@@ -119,9 +114,8 @@ async function main() {
   const scope_failed_pipeline_run = await prisma.issueScope.create({
     data: { resourceType: "pipelinerun", resourceName: "analytics-service-deploy-123", resourceNamespace: "team-delta" }
   });
-  await prisma.issue.create({
+  const failed_pipeline_run = await prisma.issue.create({
     data: {
-      id: "failed-pipeline-run",
       title: "Pipeline run failed during deployment stage",
       description: "The pipeline run for the analytics service failed during the deployment stage due to insufficient permissions",
       severity: "major",
@@ -144,7 +138,6 @@ async function main() {
   });
   await prisma.issue.create({
     data: {
-      id: "test-flaky-mobile",
       title: "Mobile app tests showing intermittent failures",
       description: "The integration tests for the mobile app component are showing intermittent failures that may be related to test environment stability",
       severity: "minor",
@@ -165,9 +158,8 @@ async function main() {
   const scope_outdated_dependency_database = await prisma.issueScope.create({
     data: { resourceType: "application", resourceName: "e-commerce-app", resourceNamespace: "team-beta" }
   });
-  await prisma.issue.create({
+  const outdated_dependency_database = await prisma.issue.create({
     data: {
-      id: "outdated-dependency-database",
       title: "Database client library needs security update",
       description: "The database client library used by multiple components has a critical security vulnerability that needs to be addressed",
       severity: "critical",
@@ -190,7 +182,6 @@ async function main() {
   });
   await prisma.issue.create({
     data: {
-      id: "build-warning-logging",
       title: "Build warnings in logging component",
       description: "The logging component is generating build warnings about deprecated APIs that should be addressed",
       severity: "info",
@@ -211,9 +202,8 @@ async function main() {
   const scope_database_connection_timeout = await prisma.issueScope.create({
     data: { resourceType: "workspace", resourceName: "main-workspace", resourceNamespace: "team-alpha" }
   });
-  await prisma.issue.create({
+  const database_connection_timeout = await prisma.issue.create({
     data: {
-      id: "database-connection-timeout",
       title: "Database connection timeouts affecting multiple components",
       description: "Database connection timeouts are occurring across multiple components, potentially due to configuration or resource constraints",
       severity: "critical",
@@ -234,9 +224,8 @@ async function main() {
   const scope_permission_config_incorrect = await prisma.issueScope.create({
     data: { resourceType: "application", resourceName: "analytics-service", resourceNamespace: "team-delta" }
   });
-  await prisma.issue.create({
+  const permission_config_incorrect = await prisma.issue.create({
     data: {
-      id: "permission-config-incorrect",
       title: "Incorrect permission configuration for deployment service account",
       description: "The service account used for deployments has insufficient permissions, causing pipeline failures",
       severity: "major",
@@ -257,9 +246,8 @@ async function main() {
   const scope_resource_quota_exceeded = await prisma.issueScope.create({
     data: { resourceType: "application", resourceName: "e-commerce-app", resourceNamespace: "team-beta" }
   });
-  await prisma.issue.create({
+  const quota_issue = await prisma.issue.create({
     data: {
-      id: "resource-quota-exceeded",
       title: "Namespace resource quota exceeded during deployment",
       description: "The namespace resource quota was exceeded during the deployment phase, causing the release to fail",
       severity: "critical",
@@ -278,11 +266,11 @@ async function main() {
     }
   });
   // Related issues
-  await prisma.relatedIssue.create({ data: { sourceId: "failed-build-frontend", targetId: "dependency-update-needed-frontend" } });
-  await prisma.relatedIssue.create({ data: { sourceId: "failed-test-api", targetId: "database-connection-timeout" } });
-  await prisma.relatedIssue.create({ data: { sourceId: "release-failed-production", targetId: "resource-quota-exceeded" } });
-  await prisma.relatedIssue.create({ data: { sourceId: "failed-pipeline-run", targetId: "permission-config-incorrect" } });
-  await prisma.relatedIssue.create({ data: { sourceId: "outdated-dependency-database", targetId: "database-connection-timeout" } });
+  await prisma.relatedIssue.create({ data: { sourceId: failed_build_frontend.id, targetId: dependency_update_needed_frontend.id } });
+  await prisma.relatedIssue.create({ data: { sourceId: failed_test_api.id, targetId: database_connection_timeout.id } });
+  await prisma.relatedIssue.create({ data: { sourceId: release_failed_production.id, targetId: quota_issue.id } });
+  await prisma.relatedIssue.create({ data: { sourceId: failed_pipeline_run.id, targetId: permission_config_incorrect.id } });
+  await prisma.relatedIssue.create({ data: { sourceId: outdated_dependency_database.id, targetId: database_connection_timeout.id } });
 }
 main().catch(e => {
   console.error(e);

@@ -21,7 +21,7 @@ model Issue {
   scopeId          String          @unique
   scope            IssueScope      @relation(fields: [scopeId], references: [id])
   links            Link[]
-  
+
   relatedFrom      RelatedIssue[] @relation("RelatedFrom")
   relatedTo        RelatedIssue[] @relation("RelatedTo")
 
