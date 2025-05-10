@@ -20,6 +20,7 @@ router.get('/', async (req: Request, res: Response) => {
       issueType,
       resourceType,
       resourceName,
+      search,
       limit = 50,
       offset = 0,
     } = req.query;
@@ -31,10 +32,10 @@ router.get('/', async (req: Request, res: Response) => {
       issueType: issueType as IssueType,
       resourceType: resourceType as string | undefined,
       resourceName: resourceName as string | undefined,
+      search: search as string | undefined,
       limit: limit ? parseInt(limit as string) : 50,
       offset: offset ? parseInt(offset as string) : 0,
     }
-
     const result = await issueService.findIssues(filters);
     res.json(result);
   } catch (error) {
@@ -183,7 +184,10 @@ router.post('/:id/resolve', validateIdParam, async (req: Request, res: Response)
     }
 
     // Verify namespace access (already checked by middleware, but double-check)
-    if (existingIssue.namespace !== req.params.namespace && existingIssue.namespace !== req.query.namespace as string) {
+    if (existingIssue.namespace !== req.query.namespace as string) {
+
+      console.log(existingIssue.namespace);
+      console.log(req.query.namespace);
       return res.status(403).json({ error: 'Access denied to this namespace' });
     }
 

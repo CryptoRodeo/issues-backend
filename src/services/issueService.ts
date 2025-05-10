@@ -78,13 +78,13 @@ class IssueService {
         namespace: namespace as string,
         ...(issueType ? { issueType } : {}),
         ...(severity ? { severity } : {}),
-        ...(state ? { state } : {}),
+        ...(state ? { state: state.toUpperCase() } : {}),
         ...(resourceType ? { scope: { resourceType }} : {}),
         ...(resourceName ? { scope: { resourceName }} : {}),
         ...(search ? {
           OR: [
-            { title: { contains: search } },
-            { description: { contains: search }}
+            { title: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' }}
           ]
         } : {})
       };
