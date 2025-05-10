@@ -39,6 +39,7 @@ export interface IssueQueryFilters {
   state?: IssueState;
   resourceType?: string;
   resourceName?: string;
+  search?: string;
   limit?: number;
   offset?: number;
 }
@@ -67,24 +68,26 @@ class IssueService {
         state,
         resourceType,
         resourceName,
+        search,
         limit = 50,
         offset = 0,
       } = filters;
 
       // Build filter object
-      const where: any = {};
-
-      if (namespace) where.namespace = namespace;
-      if (severity) where.severity = severity;
-      if (issueType) where.issueType = issueType;
-      if (state) where.state = state;
-
-      // Include scope filters if provided
-      if (resourceType || resourceName) {
-        where.scope = {};
-        if (resourceType) where.scope.resourceType = resourceType;
-        if (resourceName) where.scope.resourceName = resourceName;
-      }
+      const where: any = {
+        namespace: namespace as string,
+        ...(issueType ? { issueType } : {}),
+        ...(severity ? { severity } : {}),
+        ...(state ? { state } : {}),
+        ...(resourceType ? { scope: { resourceType }} : {}),
+        ...(resourceName ? { scope: { resourceName }} : {}),
+        ...(search ? {
+          OR: [
+            { title: { contains: search } },
+            { description: { contains: search }}
+          ]
+        } : {})
+      };
 
       const issues = await prisma.issue.findMany({
         where,
@@ -377,7 +380,9 @@ class IssueService {
       const existingRelation = await prisma.relatedIssue.findFirst({
         where: {
           OR: [
+            // Check source to target
             { sourceId, targetId },
+            // Check target to source
             { sourceId: targetId, targetId: sourceId }
           ]
         }
@@ -411,7 +416,9 @@ class IssueService {
       const relation = await prisma.relatedIssue.findFirst({
         where: {
           OR: [
+            // Check source to target
             { sourceId, targetId },
+            // Check target to source
             { sourceId: targetId, targetId: sourceId }
           ]
         }
