@@ -1,0 +1,111 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: notify-issue-service
+  namespace: team-delta
+spec:
+  params:
+    - name: pipeline-name
+      type: string
+    - name: status
+      type: string
+    - name: failure-reason
+      type: string
+      default: ""
+    - name: run-id
+      type: string
+    - name: webhook-url
+      type: string
+      default: "https://933f-2601-18f-484-cfb0-00-6fb8.ngrok-free.app"
+  steps:
+    - name: notify
+      image: curlimages/curl:latest
+      script: |
+        #!/bin/sh
+        if [ "$(params.status)" = "Failed" ]; then
+          # Create issue for failure
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{
+              "pipelineName": "$(params.pipeline-name)",
+              "namespace": "$(context.taskRun.namespace)",
+              "failureReason": "$(params.failure-reason)",
+              "runId": "$(params.run-id)",
+              "logsUrl": "https://konflux.dev/logs/pipelinerun/$(params.run-id)"
+            }' \
+            $(params.webhook-url)/api/v1/webhooks/pipeline-failure?namespace=$(context.taskRun.namespace)
+        else
+          # Resolve issues on success
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{
+              "pipelineName": "$(params.pipeline-name)",
+              "namespace": "$(context.taskRun.namespace)"
+            }' \
+            $(params.webhook-url)/api/v1/webhooks/pipeline-success?namespace=$(context.taskRun.namespace)
+        fi
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: fetch-sbom-data
+  namespace: team-delta
+spec:
+  params:
+    - name: scenario
+      type: string
+  results:
+    - name: sbom-data
+      description: "The SBOM data fetched from Github"
+  steps:
+    - name: fetch-data
+      image: curlimages/curl:latest
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 3000
+        seccompProfile:
+          type: "RuntimeDefault"
+      script: |
+        #!/bin/sh
+          if [ "$(params.scenario)" = "pass" ]; then
+            curl -s https://dummyjson.com/test
+          else
+            # Mispelled URL, should fail
+            curl -s https://dummyjsn.com/test
+          fi
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: test-issue-service
+  namespace: team-delta
+spec:
+  params:
+    - name: scenario
+      type: string
+      default: 'pass'
+  tasks:
+    - name: demo-issue-service
+      taskRef: 
+        name: fetch-sbom-data
+      params:
+        - name: scenario
+          value: $(params.scenario)
+  finally:
+    - name: notify-issues
+      taskRef:
+        name: notify-issue-service
+      params:
+        - name: pipeline-name
+          value: $(context.pipeline.name)
+        - name: status
+          value: $(tasks.status)
+        - name: failure-reason
+          value: $(tasks.failure.message)
+        - name: run-id
+          value: $(context.pipelineRun.name)
+---

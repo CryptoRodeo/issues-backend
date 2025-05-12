@@ -2,6 +2,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import issuesRoutes from './routes/issues'
+import webhooksRouter from './routes/webhooks';
 import logRequests from './middleware/requestLogger';
 import handleErrors from './middleware/errorHandler';
 const app: Express = express();
@@ -29,6 +30,8 @@ app.get('/version', (_req: Request, res: Response) => {
   });
 });
 
+// Mount routes
 app.use('/api/v1/issues', issuesRoutes);
+app.use('/api/v1/webhooks', webhooksRouter);
 
 export default app;

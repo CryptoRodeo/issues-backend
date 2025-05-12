@@ -486,6 +486,51 @@ class IssueService {
       throw error;
     }
   }
+
+  async resolveIssuesByScope(
+    resourceType: string,
+    resourceName: string,
+    namespace: string
+  ): Promise<number> {
+    try {
+      const issues = await prisma.issue.findMany({
+        where: {
+          state: 'ACTIVE',
+          namespace,
+          scope: {
+            resourceType,
+            resourceName,
+            resourceNamespace: namespace
+          }
+        }
+      });
+
+      if (issues.length === 0) {
+        return 0;
+      }
+
+      // Update all found issues to RESOLVED
+      const now = new Date();
+      await prisma.issue.updateMany({
+        where: {
+          id: {
+            in: issues.map(issue => issue.id)
+          }
+        },
+        data: {
+          state: 'RESOLVED',
+          resolvedAt: now
+        }
+      });
+
+      logger.info(`Resolved ${issues.length} issues for ${resourceType}/${resourceName}`)
+
+      return issues.length;
+    } catch (error) {
+      logger.error(`Error resolving issues: ${error}`)
+      throw error;
+    }
+  }
 }
 
 
