@@ -16,7 +16,6 @@ spec:
       type: string
     - name: webhook-url
       type: string
-      default: "https://933f-2601-18f-484-cfb0-00-6fb8.ngrok-free.app"
   steps:
     - name: notify
       image: curlimages/curl:latest
