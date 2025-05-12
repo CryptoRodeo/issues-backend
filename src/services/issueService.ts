@@ -12,6 +12,7 @@ export interface IssueCreateInput {
   scope: {
     resourceType: string;
     resourceName: string;
+    resourceNamespace: string;
   };
   links?: {
     title: string;
@@ -48,6 +49,11 @@ export interface IssueWithRelations extends Issue {
   scope: IssueScope;
   links: Link[];
   relatedIssues?: Issue[];
+}
+
+interface DuplicateCheckResult {
+  isDuplicate: boolean;
+  existingIssue?: Issue;
 }
 
 class IssueService {
@@ -189,6 +195,12 @@ class IssueService {
         links = []
       } = data;
 
+      // Check if we're actually re-creating the same issue
+      const { isDuplicate, existingIssue } = await this.checkForDuplicateIssue(data);
+      if (isDuplicate && existingIssue) {
+        return this.updateIssue(existingIssue.id, data);
+      }
+
       const newIssue = await prisma.issue.create({
         data: {
           title,
@@ -251,12 +263,14 @@ class IssueService {
       }
 
       // Prepare update data
-      const updateData: any = {};
-      if (title !== undefined) updateData.title = title;
-      if (description !== undefined) updateData.description = description;
-      if (severity !== undefined) updateData.severity = severity;
-      if (issueType !== undefined) updateData.issueType = issueType;
-      if (state !== undefined) updateData.state = state;
+      const updateData: any = {
+        ...( title ? { title} : {}),
+        ...(description ? { description } : {}),
+        ...(severity ? { severity } : {}),
+        ...(issueType ? { issueType } : {}),
+        ...(state ? { state } : {}),
+        updatedAt: new Date(),
+      };
 
       // Handle state change to RESOLVED
       if (state === 'RESOLVED' && existingIssue.state !== 'RESOLVED') {
@@ -279,37 +293,34 @@ class IssueService {
 
         // Handle links updates if provided
         if (links !== undefined) {
-          // Delete existing links
+          const issueId = id;
+
+          // Delete old links
           await tx.link.deleteMany({
-            where: { issueId: id }
+            where: {
+              issueId
+            }
           });
 
           // Create new links
-          if (links.length > 0) {
-            await tx.link.createMany({
-              data: links.map(link => ({
+          for (const link of links) {
+            await tx.link.create({
+              data: {
                 title: link.title,
                 url: link.url,
-                issueId: id
-              }))
+                issueId
+              }
             });
           }
-
-          // Get updated links
-          const updatedLinks = await tx.link.findMany({
-            where: { issueId: id }
-          });
-
-          updatedIssue.links = updatedLinks;
         }
 
         return updatedIssue;
       });
 
-      logger.info(`Updated issue: ${id}`);
+      logger.info(`Updated existing issue: ${id}`);
       return result as IssueWithRelations;
     } catch (error) {
-      logger.error(`Error in updateIssue: ${error}`);
+      logger.error(`Error updating existing issue: ${error}`);
       throw error;
     }
   }
@@ -439,7 +450,44 @@ class IssueService {
       throw error;
     }
   }
+
+  async checkForDuplicateIssue(input: IssueCreateInput): Promise<DuplicateCheckResult> {
+    try {
+      // Check for active issues with the same scope and type
+      const existingIssue = await prisma.issue.findFirst({
+        where: {
+          AND: [
+            { namespace: input.namespace },
+            { issueType: input.issueType },
+            { state: 'ACTIVE' as IssueState },
+            {
+              scope: {
+                resourceType: input.scope.resourceType,
+                resourceName: input.scope.resourceName,
+                resourceNamespace: input.scope.resourceNamespace,
+              }
+            }
+          ]
+        },
+        include: {
+          scope: true,
+          links: true
+        }
+      });
+
+      if (existingIssue) {
+        logger.info(`Found duplicate issue: ${existingIssue.id}`);
+        return { isDuplicate: true, existingIssue };
+      }
+
+      return { isDuplicate: false };
+    } catch (error) {
+      logger.error(`Error checking for duplicate issues: ${error}`);
+      throw error;
+    }
+  }
 }
+
 
 // Export a singleton instance
 const issueService = new IssueService();

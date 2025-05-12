@@ -6,6 +6,7 @@ jest.mock('../../db', () => ({
   issue: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -112,6 +113,7 @@ describe('Issue Service', () => {
       (prisma.issue.count as jest.Mock).mockResolvedValue(mockCount);
 
       const filters = {
+        namespace: 'test-namespace',
         resourceType: 'component',
         resourceName: 'frontend',
         limit: 10,
@@ -120,16 +122,40 @@ describe('Issue Service', () => {
 
       await issueService.findIssues(filters);
 
-      expect(prisma.issue.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            scope: {
-              resourceType: 'component',
-              resourceName: 'frontend'
+      expect(prisma.issue.findMany).toHaveBeenCalledWith({
+        "include": {
+          "links": true,
+          "relatedFrom": {
+            "include": {
+              "target": {
+                "include": {
+                  "scope": true
+                }
+              }
             }
-          })
-        })
-      );
+          },
+          "relatedTo": {
+            "include": {
+              "source": {
+                "include": {
+                  "scope": true
+                }
+              }
+            }
+          },
+          "scope": true
+        },
+        "orderBy": {
+          "detectedAt": "desc"
+        },
+        "skip": 0,
+        "take": 10,
+        "where": {
+          "namespace": "test-namespace",
+          "scope": {"resourceName": "frontend"
+          }
+        }
+      });
     });
   });
 
@@ -176,7 +202,8 @@ describe('Issue Service', () => {
         namespace: 'test-namespace',
         scope: {
           resourceType: 'component',
-          resourceName: 'frontend'
+          resourceName: 'frontend',
+          resourceNamespace: 'test-namespace',
         },
         links: []
       };
@@ -211,6 +238,83 @@ describe('Issue Service', () => {
 
       expect(result).toEqual(mockCreatedIssue);
     });
+
+    it('should prevent creating duplicate issues', async () => {
+      const mockCreatedIssue = {
+        id: 'new-issue',
+        title: 'New Issue',
+        description: 'Description',
+        severity: 'major',
+        issueType: 'build',
+        state: 'ACTIVE',
+        namespace: 'test-namespace',
+        scope: {
+          resourceType: 'component',
+          resourceName: 'frontend',
+          resourceNamespace: 'test-namespace',
+        },
+        links: []
+      };
+
+      (prisma.issue.create as jest.Mock).mockResolvedValue(mockCreatedIssue);
+
+      const issueData = {
+        title: 'New Issue',
+        description: 'Description',
+        severity: 'major',
+        issueType: 'build',
+        namespace: 'test-namespace',
+        scope: {
+          resourceType: 'component',
+          resourceName: 'frontend',
+          resourceNamespace: 'test-namespace',
+        }
+      };
+
+      const result = await issueService.createIssue(issueData as IssueCreateInput);
+
+      expect(prisma.issue.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            title: 'New Issue',
+            description: 'Description',
+            severity: 'major',
+            issueType: 'build',
+            namespace: 'test-namespace'
+          })
+        })
+      );
+
+      expect(result).toEqual(mockCreatedIssue);
+      // Mock DB retrieving recently created issue
+      (prisma.issue.findFirst as jest.Mock).mockResolvedValue(mockCreatedIssue);
+      (prisma.issue.findUnique as jest.Mock).mockResolvedValue(mockCreatedIssue);
+      // Now lets try creating the same issue again with the same data.
+
+      // Test the check first
+      const { isDuplicate, existingIssue } = await issueService.checkForDuplicateIssue(issueData as IssueCreateInput);
+      expect(isDuplicate).toBeTruthy();
+
+      // Now test creating the issue to ensure that the check is used
+      const existing  = await issueService.createIssue(issueData as IssueCreateInput);
+      expect(prisma.issue.update).toHaveBeenCalledWith({
+          data: {
+            description: "Description",
+            issueType: "build",
+            severity: "major",
+            title: "New Issue",
+            updatedAt: new Date(),
+          },
+          include: {
+            links: true,
+            scope: true,
+          },
+          where: {
+            id: "new-issue",
+          },
+        });
+
+    })
   });
 
   describe('updateIssue', () => {
