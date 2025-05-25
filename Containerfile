@@ -62,9 +62,7 @@ COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 ENV TZ=UTC
 
 # Fix line endings and make entrypoint script executable
-RUN sed -i 's/\r$//' entrypoint.sh && \
-    chmod +x entrypoint.sh && \
-    chown -R appuser:appgroup /app
+RUN chmod +x entrypoint.sh && chown -R appuser:appgroup /app
 
 # Switch to non-root user
 USER appuser
