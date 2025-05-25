@@ -1,14 +1,47 @@
 services:
-  db:
-    image: postgres:15
+  app:
+    env_file: .env.development
+    build:
+      context: .
+      dockerfile: Containerfile
+      args:
+        - PROJECT_ENV=${PROJECT_ENV}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./configs/kube-config.yaml:/app/configs/kube-config.yaml:ro
+    depends_on:
+      db:
+        # Ensure the DB is ready before the app
+        condition: service_healthy
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: issuesdb
+      - DB_HOST=db
+      - PROJECT_ENV=development
+      - DATABASE_URL=postgres://kite:postgres@db:5432/issuesdb?sslmode=disable
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  db:
+    image: registry.redhat.io/rhel9/postgresql-15
+    environment:
+      POSTGRESQL_USER: kite
+      POSTGRESQL_PASSWORD: postgres
+      POSTGRESQL_DATABASE: issuesdb
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kite -d issuesdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
 volumes:
   pgdata:
