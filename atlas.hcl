@@ -10,19 +10,6 @@ data "external_schema" "gorm" {
   ]
 }
 
-env "local" {
-  src = data.external_schema.gorm.url
-  dev = "docker://postgres/15/test"
-  migration {
-    dir = "file://migrations"
-  }
-  format {
-    migrate {
-      diff = "{{ sql . \" \"}}"
-    }
-  }
-}
-
 env "development" {
   # data.external_schema.gorm -> Run the program above to get schema info
   # data.external_schema.gorm.url -> The schema definition the program produced
