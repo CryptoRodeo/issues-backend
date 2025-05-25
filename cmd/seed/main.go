@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/CryptoRodeo/kite/internal/config"
+	"github.com/CryptoRodeo/kite/internal/seed"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
@@ -44,7 +45,7 @@ func main() {
 	defer sqlDB.Close()
 
 	// Run seeding
-	if err := config.SeedData(db); err != nil {
+	if err := seed.SeedData(db); err != nil {
 		logger.WithError(err).Fatal("Failed to seed database")
 	}
 

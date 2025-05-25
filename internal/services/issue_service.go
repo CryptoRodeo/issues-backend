@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CryptoRodeo/kite/internal/models"
+	"github.com/CryptoRodeo/kite/internal/domain"
+	"github.com/CryptoRodeo/kite/internal/handlers/dto"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -17,9 +18,9 @@ type IssueService struct {
 
 type IssueQueryFilters struct {
 	Namespace    string
-	Severity     *models.Severity
-	IssueType    *models.IssueType
-	State        *models.IssueState
+	Severity     *domain.Severity
+	IssueType    *domain.IssueType
+	State        *domain.IssueState
 	ResourceType string
 	ResourceName string
 	Search       string
@@ -29,7 +30,7 @@ type IssueQueryFilters struct {
 
 type DuplicateCheckResult struct {
 	IsDuplicate   bool
-	ExistingIssue *models.Issue
+	ExistingIssue *domain.Issue
 }
 
 func NewIssueService(db *gorm.DB, logger *logrus.Logger) *IssueService {
@@ -40,13 +41,13 @@ func NewIssueService(db *gorm.DB, logger *logrus.Logger) *IssueService {
 }
 
 // CheckForDuplicateIssue checks if a similar issue already exists
-func (s *IssueService) CheckForDuplicateIssue(req models.CreateIssueRequest) (*DuplicateCheckResult, error) {
-	var existingIssue models.Issue
+func (s *IssueService) CheckForDuplicateIssue(req dto.CreateIssueRequest) (*DuplicateCheckResult, error) {
+	var existingIssue domain.Issue
 	err := s.db.
 		Preload("Links").
 		Joins("JOIN issue_scopes on issues.scope_id = issue_scopes.id").
 		Where("issues.namespace = ? AND issues.issue_type = ? AND issues.state = ?",
-			req.Namespace, req.IssueType, models.IssueStateActive).
+			req.Namespace, req.IssueType, domain.IssueStateActive).
 		Where("issue_scopes.resource_type = ? AND issue_scopes.resource_name = ? AND issue_scopes.resource_namespace = ?",
 			req.Scope.ResourceType, req.Scope.ResourceName, req.Namespace).
 		First(&existingIssue).Error
@@ -67,13 +68,13 @@ func (s *IssueService) CheckForDuplicateIssue(req models.CreateIssueRequest) (*D
 }
 
 // FindIssues retrieves issues with optional filters
-func (s *IssueService) FindIssues(filters IssueQueryFilters) (*models.IssueResponse, error) {
-	var issues []models.Issue
+func (s *IssueService) FindIssues(filters IssueQueryFilters) (*dto.IssueResponse, error) {
+	var issues []domain.Issue
 	var total int64
 
 	// Build base query
 	// Preload any associations
-	query := s.db.Model(&models.Issue{}).
+	query := s.db.Model(&domain.Issue{}).
 		Preload("Scope").
 		Preload("Links").
 		Preload("RelatedFrom.Target.Scope").
@@ -125,7 +126,7 @@ func (s *IssueService) FindIssues(filters IssueQueryFilters) (*models.IssueRespo
 		return nil, fmt.Errorf("failed to find issues: %w", err)
 	}
 
-	return &models.IssueResponse{
+	return &dto.IssueResponse{
 		Data:   issues,
 		Total:  total,
 		Limit:  filters.Limit,
@@ -134,8 +135,8 @@ func (s *IssueService) FindIssues(filters IssueQueryFilters) (*models.IssueRespo
 }
 
 // FindIssueByID retrieves a single issue by ID
-func (s *IssueService) FindIssueByID(id string) (*models.Issue, error) {
-	var issue models.Issue
+func (s *IssueService) FindIssueByID(id string) (*domain.Issue, error) {
+	var issue domain.Issue
 
 	// Find issue, load associations
 	err := s.db.
@@ -157,7 +158,7 @@ func (s *IssueService) FindIssueByID(id string) (*models.Issue, error) {
 }
 
 // CreateIssue creates a new issue
-func (s *IssueService) CreateIssue(req models.CreateIssueRequest) (*models.Issue, error) {
+func (s *IssueService) CreateIssue(req dto.CreateIssueRequest) (*domain.Issue, error) {
 	// check for duplicates
 	duplicateResult, err := s.CheckForDuplicateIssue(req)
 	if err != nil {
@@ -167,7 +168,7 @@ func (s *IssueService) CreateIssue(req models.CreateIssueRequest) (*models.Issue
 	// Check if this issue is a duplicate.
 	if duplicateResult.IsDuplicate && duplicateResult.ExistingIssue != nil {
 		// Update existing issue instead of creating a new one
-		updateReq := models.UpdateIssueRequest{
+		updateReq := dto.UpdateIssueRequest{
 			Title:       &req.Title,
 			Description: &req.Description,
 			Severity:    &req.Severity,
@@ -184,7 +185,7 @@ func (s *IssueService) CreateIssue(req models.CreateIssueRequest) (*models.Issue
 	state := req.State
 	// Assume the state of the issue is active if not sent in request
 	if state == "" {
-		state = models.IssueStateActive
+		state = domain.IssueStateActive
 	}
 
 	// Set resource namespace to match issue namespace if not provided
@@ -193,7 +194,7 @@ func (s *IssueService) CreateIssue(req models.CreateIssueRequest) (*models.Issue
 		resourceNamespace = req.Namespace
 	}
 
-	issue := models.Issue{
+	issue := domain.Issue{
 		Title:       req.Title,
 		Description: req.Description,
 		Severity:    req.Severity,
@@ -201,7 +202,7 @@ func (s *IssueService) CreateIssue(req models.CreateIssueRequest) (*models.Issue
 		State:       req.State,
 		DetectedAt:  now,
 		Namespace:   req.Namespace,
-		Scope: models.IssueScope{
+		Scope: domain.IssueScope{
 			ResourceType:      req.Scope.ResourceType,
 			ResourceName:      req.Scope.ResourceName,
 			ResourceNamespace: req.Scope.ResourceNamespace,
@@ -210,7 +211,7 @@ func (s *IssueService) CreateIssue(req models.CreateIssueRequest) (*models.Issue
 
 	// Convert any links
 	for _, linkReq := range req.Links {
-		issue.Links = append(issue.Links, models.Link{
+		issue.Links = append(issue.Links, domain.Link{
 			Title: linkReq.Title,
 			URL:   linkReq.URL,
 		})
@@ -236,7 +237,7 @@ func (s *IssueService) CreateIssue(req models.CreateIssueRequest) (*models.Issue
 }
 
 // UpdateIssue updates and existing issue
-func (s *IssueService) UpdateIssue(id string, req models.UpdateIssueRequest) (*models.Issue, error) {
+func (s *IssueService) UpdateIssue(id string, req dto.UpdateIssueRequest) (*domain.Issue, error) {
 	// Find existing issue
 	existingIssue, err := s.FindIssueByID(id)
 	if err != nil {
@@ -266,7 +267,7 @@ func (s *IssueService) UpdateIssue(id string, req models.UpdateIssueRequest) (*m
 	if req.State != nil {
 		updates["state"] = *req.State
 		// Handle state change to RESOLVED
-		if *req.State == models.IssueStateResolved && existingIssue.State != models.IssueStateResolved {
+		if *req.State == domain.IssueStateResolved && existingIssue.State != domain.IssueStateResolved {
 			now := time.Now()
 			// Add time when issue was resolved
 			updates["resolved_at"] = &now
@@ -287,13 +288,13 @@ func (s *IssueService) UpdateIssue(id string, req models.UpdateIssueRequest) (*m
 		// Handle link updates if provided
 		if req.Links != nil {
 			// Delete old links
-			if err := tx.Where("issue_id = ?", id).Delete(&models.Link{}).Error; err != nil {
+			if err := tx.Where("issue_id = ?", id).Delete(&domain.Link{}).Error; err != nil {
 				return fmt.Errorf("failed to delete old links: %w", err)
 			}
 
 			// Create new links
 			for _, linkReq := range req.Links {
-				link := models.Link{
+				link := domain.Link{
 					Title:   linkReq.Title,
 					URL:     linkReq.URL,
 					IssueID: id,
@@ -330,22 +331,22 @@ func (s *IssueService) DeleteIssue(id string) error {
 	// Delete in transaction so we have control of the order
 	err = s.db.Transaction(func(tx *gorm.DB) error {
 		// Delete related issue relationships first using issue id
-		if err := tx.Where("source_id = ? OR target_id = ?", id, id).Delete(&models.RelatedIssue{}).Error; err != nil {
+		if err := tx.Where("source_id = ? OR target_id = ?", id, id).Delete(&domain.RelatedIssue{}).Error; err != nil {
 			return fmt.Errorf("failed to delete related issues: %w", err)
 		}
 
 		// Delete links by issue id
-		if err := tx.Where("issue_id = ?", id).Delete(&models.Link{}).Error; err != nil {
+		if err := tx.Where("issue_id = ?", id).Delete(&domain.Link{}).Error; err != nil {
 			return fmt.Errorf("failed to delete links: %w", err)
 		}
 
 		// Delete the issue by id
-		if err := tx.Delete(&models.Issue{}, "id = ?", id).Error; err != nil {
+		if err := tx.Delete(&domain.Issue{}, "id = ?", id).Error; err != nil {
 			return fmt.Errorf("failed to delete issue: %w", err)
 		}
 
 		// Delete the issue scope by scope id
-		if err := tx.Delete(&models.IssueScope{}, "id = ?", issue.ScopeID).Error; err != nil {
+		if err := tx.Delete(&domain.IssueScope{}, "id = ?", issue.ScopeID).Error; err != nil {
 			return fmt.Errorf("failed to delete issue scope: %w", err)
 		}
 
@@ -377,7 +378,7 @@ func (s *IssueService) AddRelatedIssue(sourceID, targetID string) error {
 	}
 
 	// Check if relationship already exists
-	var existingRelation models.RelatedIssue
+	var existingRelation domain.RelatedIssue
 	err = s.db.Where("(source_id = ? AND target_id = ?) OR (source_id = ? AND target_id = ?)",
 		sourceID, targetID, targetID, sourceID).First(&existingRelation).Error
 
@@ -390,7 +391,7 @@ func (s *IssueService) AddRelatedIssue(sourceID, targetID string) error {
 	}
 
 	// Create relationship
-	relation := models.RelatedIssue{
+	relation := domain.RelatedIssue{
 		SourceID: sourceID,
 		TargetID: targetID,
 	}
@@ -410,7 +411,7 @@ func (s *IssueService) AddRelatedIssue(sourceID, targetID string) error {
 // RemoveRelatedIssue removes a relationship between issues
 func (s *IssueService) RemoveRelatedIssue(sourceID, targetID string) error {
 	result := s.db.Where("(source_id = ? AND target_id = ?) OR (source_id = ? AND target_id = ?)",
-		sourceID, targetID, targetID, sourceID).Delete(&models.RelatedIssue{})
+		sourceID, targetID, targetID, sourceID).Delete(&domain.RelatedIssue{})
 
 	if result.Error != nil {
 		s.logger.WithError(result.Error).Error("failed to remove related issue")
@@ -433,12 +434,12 @@ func (s *IssueService) RemoveRelatedIssue(sourceID, targetID string) error {
 func (s *IssueService) ResolveIssuesByScope(resourceType, resourceName, namespace string) (int64, error) {
 	now := time.Now()
 
-	result := s.db.Model(&models.Issue{}).
+	result := s.db.Model(&domain.Issue{}).
 		Joins("JOIN issue_scopes ON issues.scope_id = issue_scopes.id").
-		Where("issues.state = ? AND issues.namespace = ?", models.IssueStateActive, namespace).
+		Where("issues.state = ? AND issues.namespace = ?", domain.IssueStateActive, namespace).
 		Where("issue_scopes.resource_type = ? AND issue_scopes.resource_name = ?", resourceType, resourceName).
 		Updates(map[string]any{
-			"state":       models.IssueStateResolved,
+			"state":       domain.IssueStateResolved,
 			"resolved_at": &now,
 			"updated_at":  now,
 		})

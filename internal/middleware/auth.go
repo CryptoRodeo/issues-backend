@@ -17,68 +17,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// Logger middleware for request logging
-func Logger(logger *logrus.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		path := c.Request.URL.Path
-		method := c.Request.Method
-
-		// Process request
-		c.Next()
-
-		// Log request
-		duration := time.Since(start)
-		statusCode := c.Writer.Status()
-
-		logEntry := logger.WithFields(logrus.Fields{
-			"method":     method,
-			"path":       path,
-			"status":     statusCode,
-			"duration":   duration,
-			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
-		})
-
-		if statusCode >= 400 {
-			logEntry.Warn("HTTP Request")
-		} else {
-			logEntry.Info("HTTP Request")
-		}
-	}
-}
-
-// ErrorHandler middleware for handling panics and errors
-func ErrorHandler(logger *logrus.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		defer func() {
-			if err := recover(); err != nil {
-				logger.WithField("error", err).Error("Panic recovered")
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"error": "Internal server error",
-				})
-				c.Abort()
-			}
-		}()
-		c.Next()
-	}
-}
-
-// CORS middlware
-func CORS() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Conrol-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin,COntent-Type,Accept,Authorization")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusOK)
-			return
-		}
-		c.Next()
-	}
-}
-
 // Kubernetes namespaces access checker
 type NamespaceChecker struct {
 	client kubernetes.Interface
@@ -209,28 +147,4 @@ func (nc *NamespaceChecker) checkPodAccess(namespace string) error {
 	}
 
 	return nil
-}
-
-// Validation middleware for request validation
-func ValidateID() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		id := c.Param("id")
-		if id == "" || len(id) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID parameter"})
-			c.Abort()
-			return
-		}
-		c.Next()
-	}
-}
-
-// Health check middleware that ca nbe used to verify dependencies
-func HealthCheck(logger *logrus.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":    "UP",
-			"message":   "Service is healthy",
-			"timestamp": time.Now().UTC(),
-		})
-	}
 }

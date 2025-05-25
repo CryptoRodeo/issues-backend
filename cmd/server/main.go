@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"github.com/CryptoRodeo/kite/internal/config"
-	"github.com/CryptoRodeo/kite/internal/handlers"
+	handler_http "github.com/CryptoRodeo/kite/internal/handlers/http"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
@@ -51,7 +51,7 @@ func main() {
 	defer sqlDB.Close()
 
 	// Setup router
-	router, err := handlers.SetupRouter(db, logger)
+	router, err := handler_http.SetupRouter(db, logger)
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to setup router")
 	}

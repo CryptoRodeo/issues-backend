@@ -1,4 +1,4 @@
-package handlers
+package http
 
 import (
 	"github.com/CryptoRodeo/kite/internal/middleware"
