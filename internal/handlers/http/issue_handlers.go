@@ -8,8 +8,8 @@ import (
 
 	"slices"
 
-	"github.com/CryptoRodeo/kite/internal/domain"
 	"github.com/CryptoRodeo/kite/internal/handlers/dto"
+	"github.com/CryptoRodeo/kite/internal/models"
 	"github.com/CryptoRodeo/kite/internal/services"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -40,15 +40,15 @@ func (h *IssueHandler) GetIssues(c *gin.Context) {
 	// Parse optional enum params
 	if severity := c.Query("severity"); severity != "" {
 		// Convert to custom type, then assign
-		sev := domain.Severity(severity)
+		sev := models.Severity(severity)
 		filters.Severity = &sev
 	}
 	if issueType := c.Query("issueType"); issueType != "" {
-		it := domain.IssueType(issueType)
+		it := models.IssueType(issueType)
 		filters.IssueType = &it
 	}
 	if state := c.Query("state"); state != "" {
-		st := domain.IssueState(state)
+		st := models.IssueState(state)
 		filters.State = &st
 	}
 
@@ -221,7 +221,7 @@ func (h *IssueHandler) ResolveIssue(c *gin.Context) {
 	}
 
 	now := time.Now()
-	state := domain.IssueStateResolved
+	state := models.IssueStateResolved
 	req := dto.UpdateIssueRequest{
 		State:      &state,
 		ResolvedAt: &now,
@@ -287,9 +287,9 @@ func (h *IssueHandler) RemoveRelatedIssue(c *gin.Context) {
 // Helper function for validation issue creation
 func (h *IssueHandler) validateCreateIssueRequest(req dto.CreateIssueRequest) error {
 	// Validate severity
-	validSeverities := []domain.Severity{
-		domain.SeverityInfo, domain.SeverityMinor,
-		domain.SeverityMajor, domain.SeverityCritical,
+	validSeverities := []models.Severity{
+		models.SeverityInfo, models.SeverityMinor,
+		models.SeverityMajor, models.SeverityCritical,
 	}
 
 	if !slices.Contains(validSeverities, req.Severity) {
@@ -297,10 +297,10 @@ func (h *IssueHandler) validateCreateIssueRequest(req dto.CreateIssueRequest) er
 	}
 
 	// Validate issue type
-	validTypes := []domain.IssueType{
-		domain.IssueTypeBuild, domain.IssueTypeTest,
-		domain.IssueTypeRelease, domain.IssueTypeDependency,
-		domain.IssueTypePipeline,
+	validTypes := []models.IssueType{
+		models.IssueTypeBuild, models.IssueTypeTest,
+		models.IssueTypeRelease, models.IssueTypeDependency,
+		models.IssueTypePipeline,
 	}
 	if !slices.Contains(validTypes, req.IssueType) {
 		return errors.New("invalid issueType value")
@@ -308,7 +308,7 @@ func (h *IssueHandler) validateCreateIssueRequest(req dto.CreateIssueRequest) er
 
 	// validate state if provided
 	if req.State != "" {
-		validStates := []domain.IssueState{domain.IssueStateActive, domain.IssueStateResolved}
+		validStates := []models.IssueState{models.IssueStateActive, models.IssueStateResolved}
 		if !slices.Contains(validStates, req.State) {
 			return errors.New("invalid state value")
 		}

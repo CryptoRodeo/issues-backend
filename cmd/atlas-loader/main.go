@@ -6,16 +6,16 @@ import (
 	"os"
 
 	"ariga.io/atlas-provider-gorm/gormschema"
-	"github.com/CryptoRodeo/kite/internal/domain"
+	"github.com/CryptoRodeo/kite/internal/models"
 )
 
 func main() {
 	// Load all the models, generate SQL statements for them.
 	stmts, err := gormschema.New("postgres").Load(
-		&domain.IssueScope{},
-		&domain.Issue{},
-		&domain.Link{},
-		&domain.RelatedIssue{},
+		&models.IssueScope{},
+		&models.Issue{},
+		&models.Link{},
+		&models.RelatedIssue{},
 	)
 
 	if err != nil {

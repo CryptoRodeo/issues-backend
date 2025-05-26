@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/CryptoRodeo/kite/internal/domain"
 	"github.com/CryptoRodeo/kite/internal/handlers/dto"
+	"github.com/CryptoRodeo/kite/internal/models"
 	"github.com/CryptoRodeo/kite/internal/services"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -57,7 +57,7 @@ func (h *WebhookHandler) PipelineFailure(c *gin.Context) {
 	issueData := dto.CreateIssueRequest{
 		Title:       fmt.Sprintf("Pipeline run failed: %s", req.PipelineName),
 		Description: fmt.Sprintf("The pipeline run %s failed with reason: %s", req.PipelineName, req.FailureReason),
-		Severity:    domain.SeverityMajor, // TODO - check if we should make this configurable via the request.
+		Severity:    models.SeverityMajor, // TODO - check if we should make this configurable via the request.
 		Namespace:   req.Namespace,
 		Scope: dto.ScopeReqBody{
 			ResourceType:      "pipelinerun",
@@ -80,7 +80,7 @@ func (h *WebhookHandler) PipelineFailure(c *gin.Context) {
 		return
 	}
 
-	var issue *domain.Issue
+	var issue *models.Issue
 	// If an existing issue already exists, run an update
 	if duplicateResult.IsDuplicate && duplicateResult.ExistingIssue != nil {
 		// Update existing issue

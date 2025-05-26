@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CryptoRodeo/kite/internal/domain"
+	"github.com/CryptoRodeo/kite/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -12,7 +12,7 @@ import (
 func SeedData(db *gorm.DB) error {
 	// Check if data already exists
 	var count int64
-	if err := db.Model(&domain.Issue{}).Count(&count).Error; err != nil {
+	if err := db.Model(&models.Issue{}).Count(&count).Error; err != nil {
 		return fmt.Errorf("failed to check existing data: %w", err)
 	}
 
@@ -47,7 +47,7 @@ func SeedData(db *gorm.DB) error {
 }
 
 func seedIssueScopes(tx *gorm.DB) (map[string]string, error) {
-	scopes := []domain.IssueScope{
+	scopes := []models.IssueScope{
 		{
 			ResourceType:      "component",
 			ResourceName:      "frontend-ui",
@@ -136,13 +136,13 @@ func seedIssueScopes(tx *gorm.DB) (map[string]string, error) {
 
 func seedIssues(tx *gorm.DB, scopeMap map[string]string) error {
 	now := time.Now()
-	issues := []domain.Issue{
+	issues := []models.Issue{
 		{
 			Title:       "Frontend build failed due to dependency conflict",
 			Description: "The build process for the frontend component failed because of conflicting versions of React dependencies",
-			Severity:    domain.SeverityMajor,
-			IssueType:   domain.IssueTypeBuild,
-			State:       domain.IssueStateActive,
+			Severity:    models.SeverityMajor,
+			IssueType:   models.IssueTypeBuild,
+			State:       models.IssueStateActive,
 			DetectedAt:  time.Date(2025, 4, 30, 15, 45, 30, 0, time.UTC),
 			Namespace:   "team-alpha",
 			ScopeID:     scopeMap["scope-failed-build-frontend"],
@@ -150,9 +150,9 @@ func seedIssues(tx *gorm.DB, scopeMap map[string]string) error {
 		{
 			Title:       "API integration tests failing on database connection",
 			Description: "Integration tests for the API component are failing because the database connection is timing out",
-			Severity:    domain.SeverityCritical,
-			IssueType:   domain.IssueTypeTest,
-			State:       domain.IssueStateActive,
+			Severity:    models.SeverityCritical,
+			IssueType:   models.IssueTypeTest,
+			State:       models.IssueStateActive,
 			DetectedAt:  time.Date(2025, 5, 1, 9, 15, 22, 0, time.UTC),
 			Namespace:   "team-alpha",
 			ScopeID:     scopeMap["scope-failed-test-api"],
@@ -160,9 +160,9 @@ func seedIssues(tx *gorm.DB, scopeMap map[string]string) error {
 		{
 			Title:       "Production release failed during deployment",
 			Description: "The production release of the e-commerce application failed during the deployment phase due to resource limits",
-			Severity:    domain.SeverityCritical,
-			IssueType:   domain.IssueTypeRelease,
-			State:       domain.IssueStateActive,
+			Severity:    models.SeverityCritical,
+			IssueType:   models.IssueTypeRelease,
+			State:       models.IssueStateActive,
 			DetectedAt:  time.Date(2025, 4, 29, 18, 30, 45, 0, time.UTC),
 			Namespace:   "team-beta",
 			ScopeID:     scopeMap["scope-release-failed-production"],
@@ -170,9 +170,9 @@ func seedIssues(tx *gorm.DB, scopeMap map[string]string) error {
 		{
 			Title:       "Frontend dependency updates available",
 			Description: "Security vulnerabilities found in current dependencies. Updates are available and recommended.",
-			Severity:    domain.SeverityMajor,
-			IssueType:   domain.IssueTypeDependency,
-			State:       domain.IssueStateActive,
+			Severity:    models.SeverityMajor,
+			IssueType:   models.IssueTypeDependency,
+			State:       models.IssueStateActive,
 			DetectedAt:  time.Date(2025, 4, 28, 14, 20, 10, 0, time.UTC),
 			Namespace:   "team-alpha",
 			ScopeID:     scopeMap["scope-dependency-update-needed-frontend"],
@@ -180,9 +180,9 @@ func seedIssues(tx *gorm.DB, scopeMap map[string]string) error {
 		{
 			Title:       "Pipeline tasks using deprecated API versions",
 			Description: "Several pipeline tasks are using API versions that will be deprecated in the next Konflux update",
-			Severity:    domain.SeverityMinor,
-			IssueType:   domain.IssueTypePipeline,
-			State:       domain.IssueStateActive,
+			Severity:    models.SeverityMinor,
+			IssueType:   models.IssueTypePipeline,
+			State:       models.IssueStateActive,
 			DetectedAt:  time.Date(2025, 4, 25, 11, 10, 30, 0, time.UTC),
 			Namespace:   "team-gamma",
 			ScopeID:     scopeMap["scope-pipeline-outdated"],
@@ -190,9 +190,9 @@ func seedIssues(tx *gorm.DB, scopeMap map[string]string) error {
 		{
 			Title:       "Pipeline run failed during deployment stage",
 			Description: "The pipeline run for the analytics service failed during the deployment stage due to insufficient permissions",
-			Severity:    domain.SeverityMajor,
-			IssueType:   domain.IssueTypePipeline,
-			State:       domain.IssueStateActive,
+			Severity:    models.SeverityMajor,
+			IssueType:   models.IssueTypePipeline,
+			State:       models.IssueStateActive,
 			DetectedAt:  time.Date(2025, 4, 30, 16, 45, 20, 0, time.UTC),
 			Namespace:   "team-delta",
 			ScopeID:     scopeMap["scope-failed-pipeline-run"],
@@ -200,9 +200,9 @@ func seedIssues(tx *gorm.DB, scopeMap map[string]string) error {
 		{
 			Title:       "Mobile app tests showing intermittent failures",
 			Description: "The integration tests for the mobile app component are showing intermittent failures that may be related to test environment stability",
-			Severity:    domain.SeverityMinor,
-			IssueType:   domain.IssueTypeTest,
-			State:       domain.IssueStateResolved,
+			Severity:    models.SeverityMinor,
+			IssueType:   models.IssueTypeTest,
+			State:       models.IssueStateResolved,
 			DetectedAt:  time.Date(2025, 4, 28, 10, 25, 15, 0, time.UTC),
 			ResolvedAt:  &[]time.Time{time.Date(2025, 4, 29, 14, 35, 40, 0, time.UTC)}[0],
 			Namespace:   "team-alpha",
@@ -211,9 +211,9 @@ func seedIssues(tx *gorm.DB, scopeMap map[string]string) error {
 		{
 			Title:       "Database client library needs security update",
 			Description: "The database client library used by multiple components has a critical security vulnerability that needs to be addressed",
-			Severity:    domain.SeverityCritical,
-			IssueType:   domain.IssueTypeDependency,
-			State:       domain.IssueStateResolved,
+			Severity:    models.SeverityCritical,
+			IssueType:   models.IssueTypeDependency,
+			State:       models.IssueStateResolved,
 			DetectedAt:  time.Date(2025, 4, 25, 9, 20, 30, 0, time.UTC),
 			ResolvedAt:  &[]time.Time{time.Date(2025, 4, 30, 13, 40, 15, 0, time.UTC)}[0],
 			Namespace:   "team-beta",
@@ -222,9 +222,9 @@ func seedIssues(tx *gorm.DB, scopeMap map[string]string) error {
 		{
 			Title:       "Build warnings in logging component",
 			Description: "The logging component is generating build warnings about deprecated APIs that should be addressed",
-			Severity:    domain.SeverityInfo,
-			IssueType:   domain.IssueTypeBuild,
-			State:       domain.IssueStateActive,
+			Severity:    models.SeverityInfo,
+			IssueType:   models.IssueTypeBuild,
+			State:       models.IssueStateActive,
 			DetectedAt:  time.Date(2025, 4, 27, 15, 30, 45, 0, time.UTC),
 			Namespace:   "team-gamma",
 			ScopeID:     scopeMap["scope-build-warning-logging"],
@@ -232,9 +232,9 @@ func seedIssues(tx *gorm.DB, scopeMap map[string]string) error {
 		{
 			Title:       "Database connection timeouts affecting multiple components",
 			Description: "Database connection timeouts are occurring across multiple components, potentially due to configuration or resource constraints",
-			Severity:    domain.SeverityCritical,
-			IssueType:   domain.IssueTypeRelease,
-			State:       domain.IssueStateActive,
+			Severity:    models.SeverityCritical,
+			IssueType:   models.IssueTypeRelease,
+			State:       models.IssueStateActive,
 			DetectedAt:  time.Date(2025, 5, 1, 8, 10, 25, 0, time.UTC),
 			Namespace:   "team-alpha",
 			ScopeID:     scopeMap["scope-database-connection-timeout"],
@@ -242,9 +242,9 @@ func seedIssues(tx *gorm.DB, scopeMap map[string]string) error {
 		{
 			Title:       "Incorrect permission configuration for deployment service account",
 			Description: "The service account used for deployments has insufficient permissions, causing pipeline failures",
-			Severity:    domain.SeverityMajor,
-			IssueType:   domain.IssueTypeRelease,
-			State:       domain.IssueStateActive,
+			Severity:    models.SeverityMajor,
+			IssueType:   models.IssueTypeRelease,
+			State:       models.IssueStateActive,
 			DetectedAt:  time.Date(2025, 4, 30, 15, 30, 10, 0, time.UTC),
 			Namespace:   "team-delta",
 			ScopeID:     scopeMap["scope-permission-config-incorrect"],
@@ -252,9 +252,9 @@ func seedIssues(tx *gorm.DB, scopeMap map[string]string) error {
 		{
 			Title:       "Namespace resource quota exceeded during deployment",
 			Description: "The namespace resource quota was exceeded during the deployment phase, causing the release to fail",
-			Severity:    domain.SeverityCritical,
-			IssueType:   domain.IssueTypeRelease,
-			State:       domain.IssueStateActive,
+			Severity:    models.SeverityCritical,
+			IssueType:   models.IssueTypeRelease,
+			State:       models.IssueStateActive,
 			DetectedAt:  time.Date(2025, 4, 29, 18, 15, 30, 0, time.UTC),
 			Namespace:   "team-beta",
 			ScopeID:     scopeMap["scope-resource-quota-exceeded"],
@@ -275,7 +275,7 @@ var createdIssueIDs = make(map[string]string)
 
 func seedLinks(tx *gorm.DB) error {
 	// First, get the issue IDs by querying the database
-	var issues []domain.Issue
+	var issues []models.Issue
 	if err := tx.Find(&issues).Error; err != nil {
 		return err
 	}
@@ -299,7 +299,7 @@ func seedLinks(tx *gorm.DB) error {
 		}
 	}
 
-	links := []domain.Link{
+	links := []models.Link{
 		// failed-build-frontend links
 		{
 			Title:   "Build Logs",
@@ -373,7 +373,7 @@ func seedLinks(tx *gorm.DB) error {
 
 func seedRelatedIssues(tx *gorm.DB) error {
 	// Get issues by querying the database
-	var issues []domain.Issue
+	var issues []models.Issue
 	if err := tx.Find(&issues).Error; err != nil {
 		return err
 	}
@@ -403,7 +403,7 @@ func seedRelatedIssues(tx *gorm.DB) error {
 		}
 	}
 
-	relatedIssues := []domain.RelatedIssue{
+	relatedIssues := []models.RelatedIssue{
 		{
 			SourceID: issueMap["failed-build-frontend"],
 			TargetID: issueMap["dependency-update-needed-frontend"],
@@ -427,7 +427,7 @@ func seedRelatedIssues(tx *gorm.DB) error {
 	}
 
 	// Filter out any relationships where we couldn't find the issue IDs
-	var validRelations []domain.RelatedIssue
+	var validRelations []models.RelatedIssue
 	for _, rel := range relatedIssues {
 		if rel.SourceID != "" && rel.TargetID != "" {
 			validRelations = append(validRelations, rel)

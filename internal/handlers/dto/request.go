@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	"github.com/CryptoRodeo/kite/internal/domain"
+	"github.com/CryptoRodeo/kite/internal/models"
 )
 
 // DTOs (Data Transfer Objects)
@@ -20,9 +20,9 @@ type ScopeReqBody struct {
 type CreateIssueRequest struct {
 	Title       string              `json:"title" binding:"required"`
 	Description string              `json:"description" binding:"required"`
-	Severity    domain.Severity     `json:"severity" binding:"required"`
-	IssueType   domain.IssueType    `json:"issueType" binding:"required"`
-	State       domain.IssueState   `json:"state"`
+	Severity    models.Severity     `json:"severity" binding:"required"`
+	IssueType   models.IssueType    `json:"issueType" binding:"required"`
+	State       models.IssueState   `json:"state"`
 	Namespace   string              `json:"namespace" binding:"required"`
 	Scope       ScopeReqBody        `json:"scope" binding:"required"`
 	Links       []CreateLinkRequest `json:"links"`
@@ -36,9 +36,9 @@ type CreateLinkRequest struct {
 type UpdateIssueRequest struct {
 	Title       *string             `json:"title"`
 	Description *string             `json:"description"`
-	Severity    *domain.Severity    `json:"severity"`
-	IssueType   *domain.IssueType   `json:"issueType"`
-	State       *domain.IssueState  `json:"state"`
+	Severity    *models.Severity    `json:"severity"`
+	IssueType   *models.IssueType   `json:"issueType"`
+	State       *models.IssueState  `json:"state"`
 	ResolvedAt  *time.Time          `json:"resolvedAt"`
 	Links       []CreateLinkRequest `json:"links"`
 }

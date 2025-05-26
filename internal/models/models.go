@@ -1,4 +1,4 @@
-package domain
+package models
 
 import (
 	"time"
@@ -64,6 +64,62 @@ type Issue struct {
 func (i *Issue) BeforeCreate(tx *gorm.DB) error {
 	if i.ID == "" {
 		i.ID = uuid.New().String()
+	}
+	return nil
+}
+
+// IssueScope represents the scope of an Issue
+type IssueScope struct {
+	ID                string `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ResourceType      string `gorm:"not null" json:"resourceType"`
+	ResourceName      string `gorm:"not null" json:"resourceName"`
+	ResourceNamespace string `gorm:"not null" json:"resourceNamespace"`
+
+	// Relationship - one issue scope has one issue
+	Issue *Issue `gorm:"foreignKey:ScopeID" json:"issue,omitempty"`
+}
+
+// BeforeCreate hook to set UUID if not provided
+func (s *IssueScope) BeforeCreate(tx *gorm.DB) error {
+	if s.ID == "" {
+		s.ID = uuid.New().String()
+	}
+	return nil
+}
+
+// RelatedIssue represetns relationships between issues
+type RelatedIssue struct {
+	ID       string `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	SourceID string `gorm:"type:uuid;not null" json:"sourceId"`
+	TargetID string `gorm:"type:uuid;not null" json:"targetId"`
+
+	// Relationships
+	Source Issue `gorm:"foreignKey:SourceID" json:"source,omitempty"`
+	Target Issue `gorm:"foreignKey:TargetID" json:"target,omitempty"`
+}
+
+// BeforeCreate hook to set UUID if not provided
+func (r *RelatedIssue) BeforeCreate(tx *gorm.DB) error {
+	if r.ID == "" {
+		r.ID = uuid.New().String()
+	}
+	return nil
+}
+
+// Link represents a link associated with an issue
+type Link struct {
+	ID      string `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Title   string `gorm:"not null" json:"title"`
+	URL     string `gorm:"not null" json:"url"`
+	IssueID string `gorm:"type:uuid;not null" json:"issueId"`
+	// Omit field when converting to JSON or deconverting from JSON
+	Issue Issue `gorm:"foreignKey:IssueID" json:"-"`
+}
+
+// BeforeCreate hook to set UUID if not provided
+func (l *Link) BeforeCreate(tx *gorm.DB) error {
+	if l.ID == "" {
+		l.ID = uuid.New().String()
 	}
 	return nil
 }
