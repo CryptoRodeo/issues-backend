@@ -10,6 +10,7 @@ import (
 
 	"github.com/CryptoRodeo/kite/internal/handlers/dto"
 	"github.com/CryptoRodeo/kite/internal/models"
+	"github.com/CryptoRodeo/kite/internal/repository"
 	"github.com/CryptoRodeo/kite/internal/services"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -30,7 +31,7 @@ func NewIssueHandler(issueService *services.IssueService, logger *logrus.Logger)
 // GetIssues handles GET /issues
 func (h *IssueHandler) GetIssues(c *gin.Context) {
 	// Esxtract query params
-	filters := services.IssueQueryFilters{
+	filters := repository.IssueQueryFilters{
 		Namespace:    c.Query("namespace"),
 		ResourceType: c.Query("resourceType"),
 		ResourceName: c.Query("resourceName"),
@@ -69,9 +70,9 @@ func (h *IssueHandler) GetIssues(c *gin.Context) {
 		filters.Limit = 50
 	}
 
-	result, err := h.issueService.FindIssues(filters)
+	result, err := h.issueService.FindIssues(c.Request.Context(), filters)
 	if err != nil {
-		h.logger.WithError(err).Error("faled to fetch issues")
+		h.logger.WithError(err).Error("failed to fetch issues")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch issues"})
 		return
 	}
@@ -84,7 +85,7 @@ func (h *IssueHandler) GetIssue(c *gin.Context) {
 	id := c.Param("id")
 	namespace := c.Query("namespace")
 
-	issue, err := h.issueService.FindIssueByID(id)
+	issue, err := h.issueService.FindIssueByID(c.Request.Context(), id)
 	if err != nil {
 		h.logger.WithError(err).WithField("issue_id", id).Error("Failed to fetch issue")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch issue"})
@@ -117,7 +118,7 @@ func (h *IssueHandler) CreateIssue(c *gin.Context) {
 		return
 	}
 
-	issue, err := h.issueService.CreateIssue(req)
+	issue, err := h.issueService.CreateIssue(c.Request.Context(), req)
 	if err != nil {
 		h.logger.WithError(err).Error("Failed to create issue")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create issue"})
@@ -139,7 +140,7 @@ func (h *IssueHandler) UpdateIssue(c *gin.Context) {
 	}
 
 	// Check if issue exists and verify namespace exists
-	existingIssue, err := h.issueService.FindIssueByID(id)
+	existingIssue, err := h.issueService.FindIssueByID(c.Request.Context(), id)
 	if err != nil {
 		h.logger.WithError(err).WithField("issue_id", id).Error("Failed to find issue for update")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update issue"})
@@ -156,7 +157,7 @@ func (h *IssueHandler) UpdateIssue(c *gin.Context) {
 		return
 	}
 
-	updatedIssue, err := h.issueService.UpdateIssue(id, req)
+	updatedIssue, err := h.issueService.UpdateIssue(c.Request.Context(), id, req)
 	if err != nil {
 		h.logger.WithError(err).WithField("issue_id", id).Error("Failed to update issue")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update issue"})
@@ -171,7 +172,7 @@ func (h *IssueHandler) DeleteIssue(c *gin.Context) {
 	id := c.Param("id")
 	namespace := c.Query("namespace")
 
-	existingIssue, err := h.issueService.FindIssueByID(id)
+	existingIssue, err := h.issueService.FindIssueByID(c.Request.Context(), id)
 	if err != nil {
 		h.logger.WithError(err).WithField("issue_id", id).Error("Failed to find issue for deletion")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete issue"})
@@ -188,7 +189,7 @@ func (h *IssueHandler) DeleteIssue(c *gin.Context) {
 		return
 	}
 
-	if err := h.issueService.DeleteIssue(id); err != nil {
+	if err := h.issueService.DeleteIssue(c.Request.Context(), id); err != nil {
 		h.logger.WithError(err).WithField("issue_id", id).Error("Failed to delete issue")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete issue"})
 		return
@@ -202,7 +203,7 @@ func (h *IssueHandler) ResolveIssue(c *gin.Context) {
 	id := c.Param("id")
 	namespace := c.Query("namespace")
 
-	existingIssue, err := h.issueService.FindIssueByID(id)
+	existingIssue, err := h.issueService.FindIssueByID(c.Request.Context(), id)
 	if err != nil {
 		h.logger.WithError(err).WithField("issue_id", id).Error("failed to find issue for resolution")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve issue"})
@@ -227,7 +228,7 @@ func (h *IssueHandler) ResolveIssue(c *gin.Context) {
 		ResolvedAt: &now,
 	}
 
-	updatedIssue, err := h.issueService.UpdateIssue(id, req)
+	updatedIssue, err := h.issueService.UpdateIssue(c.Request.Context(), id, req)
 	if err != nil {
 		h.logger.WithError(err).WithField("issue_id", id).Error("Failed to mark issue resolved")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to resolve issue"})
@@ -249,7 +250,7 @@ func (h *IssueHandler) AddRelatedIssue(c *gin.Context) {
 		return
 	}
 
-	if err := h.issueService.AddRelatedIssue(id, req.RelatedID); err != nil {
+	if err := h.issueService.AddRelatedIssue(c.Request.Context(), id, req.RelatedID); err != nil {
 		if err.Error() == "one or both issues not found" {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
@@ -271,7 +272,7 @@ func (h *IssueHandler) RemoveRelatedIssue(c *gin.Context) {
 	id := c.Param("id")
 	relatedID := c.Param("relatedId")
 
-	if err := h.issueService.RemoveRelatedIssue(id, relatedID); err != nil {
+	if err := h.issueService.RemoveRelatedIssue(c.Request.Context(), id, relatedID); err != nil {
 		if err.Error() == "relationship not found" {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return

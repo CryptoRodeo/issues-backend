@@ -73,7 +73,7 @@ func (h *WebhookHandler) PipelineFailure(c *gin.Context) {
 	}
 
 	// Check for duplicates
-	duplicateResult, err := h.issueService.CheckForDuplicateIssue(issueData)
+	duplicateResult, err := h.issueService.CheckForDuplicateIssue(c.Request.Context(), issueData)
 	if err != nil {
 		h.logger.WithError(err).Error("Failed to check for duplicate pipeline issues")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process webhook"})
@@ -91,7 +91,7 @@ func (h *WebhookHandler) PipelineFailure(c *gin.Context) {
 			IssueType:   &issue.IssueType,
 			Links:       issueData.Links,
 		}
-		issue, err = h.issueService.UpdateIssue(duplicateResult.ExistingIssue.ID, updateReq)
+		issue, err = h.issueService.UpdateIssue(c.Request.Context(), duplicateResult.ExistingIssue.ID, updateReq)
 		if err != nil {
 			h.logger.WithError(err).Error("Failed to update existing pipeline issue")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process webhook"})
@@ -100,7 +100,7 @@ func (h *WebhookHandler) PipelineFailure(c *gin.Context) {
 		h.logger.WithField("issue_id", duplicateResult.ExistingIssue.ID).Info("Updated existing pipeline issue")
 	} else {
 		// Create new issue
-		issue, err = h.issueService.CreateIssue(issueData)
+		issue, err = h.issueService.CreateIssue(c.Request.Context(), issueData)
 		if err != nil {
 			h.logger.WithError(err).Error("Failed to create pipeline issue: %w", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process webhook"})
@@ -124,7 +124,7 @@ func (h *WebhookHandler) PipelineSuccess(c *gin.Context) {
 	}
 
 	// Resolve any active issues for this pipeline
-	resolved, err := h.issueService.ResolveIssuesByScope("pipelinerun", req.PipelineName, req.Namespace)
+	resolved, err := h.issueService.ResolveIssuesByScope(c.Request.Context(), "pipelinerun", req.PipelineName, req.Namespace)
 	if err != nil {
 		h.logger.WithError(err).Errorf("failed to resolve issues for pipeline run %s : %v", req.PipelineName, err)
 		return

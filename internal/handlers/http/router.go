@@ -2,6 +2,7 @@ package http
 
 import (
 	"github.com/CryptoRodeo/kite/internal/middleware"
+	"github.com/CryptoRodeo/kite/internal/repository"
 	"github.com/CryptoRodeo/kite/internal/services"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -24,8 +25,10 @@ func SetupRouter(db *gorm.DB, logger *logrus.Logger) (*gin.Engine, error) {
 	router.Use(middleware.CORS())
 	router.Use(gin.Recovery())
 
+	// Initialize repository
+	issueRepo := repository.NewIssueRepository(db, logger)
 	// Initialize services
-	issueService := services.NewIssueService(db, logger)
+	issueService := services.NewIssueService(issueRepo, logger)
 
 	// Initialize handlers
 	issueHandler := NewIssueHandler(issueService, logger)

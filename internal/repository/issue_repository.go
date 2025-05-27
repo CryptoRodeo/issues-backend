@@ -33,6 +33,7 @@ type DuplicateCheckResult struct {
 func (i *issueRepository) CheckDuplicate(ctx context.Context, req dto.CreateIssueRequest) (*DuplicateCheckResult, error) {
 	var existingIssue models.Issue
 	err := i.db.
+		WithContext(ctx).
 		Preload("Links").
 		Joins("JOIN issue_scopes on issues.scope_id = issue_scopes.id").
 		Where("issues.namespace = ? AND issues.issue_type = ? AND issues.state = ?",
@@ -47,7 +48,7 @@ func (i *issueRepository) CheckDuplicate(ctx context.Context, req dto.CreateIssu
 			return &DuplicateCheckResult{IsDuplicate: false}, nil
 		}
 		i.logger.WithError(err).Error("Failed to check for duplicate issues")
-		return nil, fmt.Errorf("faield to check for duplicates: %w", err)
+		return nil, fmt.Errorf("failed to check for duplicates: %w", err)
 	}
 	i.logger.WithField("existing_issue_id", existingIssue.ID).Info("found duplicate")
 	return &DuplicateCheckResult{
@@ -68,13 +69,13 @@ type IssueQueryFilters struct {
 	Offset       int
 }
 
-func (i *issueRepository) FindAll(ctx context.Context, filters IssueQueryFilters) (*[]models.Issue, error) {
+func (i *issueRepository) FindAll(ctx context.Context, filters IssueQueryFilters) ([]models.Issue, int64, error) {
 	var issues []models.Issue
 	var total int64
 
 	// Build base query
 	// Preload any associations
-	query := i.db.Model(&models.Issue{}).
+	query := i.db.WithContext(ctx).Model(&models.Issue{}).
 		Preload("Scope").
 		Preload("Links").
 		Preload("RelatedFrom.Target.Scope").
@@ -109,7 +110,7 @@ func (i *issueRepository) FindAll(ctx context.Context, filters IssueQueryFilters
 	// Get total count for pagination
 	if err := query.Count(&total).Error; err != nil {
 		i.logger.WithError(err).Error("Failed to count issues")
-		return nil, fmt.Errorf("failed to count issues: %w", err)
+		return nil, 0, fmt.Errorf("failed to count issues: %w", err)
 	}
 
 	// Apply pagination and ordering
@@ -123,10 +124,10 @@ func (i *issueRepository) FindAll(ctx context.Context, filters IssueQueryFilters
 		Find(&issues).
 		Error; err != nil {
 		i.logger.WithError(err).Error("Failed to find issues")
-		return nil, fmt.Errorf("failed to find issues: %w", err)
+		return nil, 0, fmt.Errorf("failed to find issues: %w", err)
 	}
 
-	return &issues, nil
+	return issues, total, nil
 }
 
 func (i *issueRepository) FindByID(ctx context.Context, id string) (*models.Issue, error) {
@@ -134,6 +135,7 @@ func (i *issueRepository) FindByID(ctx context.Context, id string) (*models.Issu
 
 	// Find issue, load associations
 	err := i.db.
+		WithContext(ctx).
 		Preload("Scope").
 		Preload("RelatedFrom.Target.Scope").
 		Preload("RelatedTo.Source.Scope").
@@ -150,8 +152,67 @@ func (i *issueRepository) FindByID(ctx context.Context, id string) (*models.Issu
 	return &issue, nil
 }
 
-func (i *issueRepository) Create(ctx context.Context, issue *models.Issue) (*models.Issue, error) {
-	err := i.db.Transaction(func(tx *gorm.DB) error {
+func (i *issueRepository) Create(ctx context.Context, req dto.CreateIssueRequest) (*models.Issue, error) {
+	// check for duplicates
+	duplicateResult, err := i.CheckDuplicate(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check for duplicates: %w", err)
+	}
+
+	// Check if this issue is a duplicate.
+	if duplicateResult.IsDuplicate && duplicateResult.ExistingIssue != nil {
+		// Update existing issue instead of creating a new one
+		updateReq := dto.UpdateIssueRequest{
+			Title:       &req.Title,
+			Description: &req.Description,
+			Severity:    &req.Severity,
+			IssueType:   &req.IssueType,
+		}
+		if req.State != "" {
+			updateReq.State = &req.State
+		}
+		return i.Update(ctx, duplicateResult.ExistingIssue.ID, updateReq)
+	}
+
+	// Create new issue
+	now := time.Now()
+	state := req.State
+	// Assume the state of the issue is active if not sent in request
+	if state == "" {
+		state = models.IssueStateActive
+	}
+
+	// Set resource namespace to match issue namespace if not provided
+	resourceNamespace := req.Scope.ResourceNamespace
+	if resourceNamespace == "" {
+		resourceNamespace = req.Namespace
+	}
+
+	issue := models.Issue{
+		Title:       req.Title,
+		Description: req.Description,
+		Severity:    req.Severity,
+		IssueType:   req.IssueType,
+		State:       req.State,
+		DetectedAt:  now,
+		Namespace:   req.Namespace,
+		Scope: models.IssueScope{
+			ResourceType:      req.Scope.ResourceType,
+			ResourceName:      req.Scope.ResourceName,
+			ResourceNamespace: req.Scope.ResourceNamespace,
+		},
+	}
+
+	// Convert any links
+	for _, linkReq := range req.Links {
+		issue.Links = append(issue.Links, models.Link{
+			Title: linkReq.Title,
+			URL:   linkReq.URL,
+		})
+	}
+
+	// Create in a transaction
+	err = i.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&issue).Error; err != nil {
 			return fmt.Errorf("failed to create issue: %w", err)
 		}
@@ -159,11 +220,11 @@ func (i *issueRepository) Create(ctx context.Context, issue *models.Issue) (*mod
 	})
 
 	if err != nil {
-		i.logger.WithError(err).Error("failed to create issue")
+		i.logger.WithError(err).Error("Failed to create issue")
 		return nil, err
 	}
 
-	i.logger.WithField("issue_id", issue.ID).Info("created new issue")
+	i.logger.WithField("issue_id", issue.ID).Info("Created new issue")
 
 	// Reload with associations
 	return i.FindByID(ctx, issue.ID)
@@ -211,7 +272,7 @@ func (i *issueRepository) Update(ctx context.Context, id string, req dto.UpdateI
 
 	// Perform updates in a transaction
 	// Update issue first, then links (if any)
-	err = i.db.Transaction(func(tx *gorm.DB) error {
+	err = i.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Update issue
 		if err := tx.Model(&existingIssue).Updates(updates).Error; err != nil {
 			return fmt.Errorf("failed to update issue: %w", err)
@@ -260,7 +321,7 @@ func (i *issueRepository) Delete(ctx context.Context, id string) error {
 	}
 
 	// Delete in transaction so we have control of the order
-	err = i.db.Transaction(func(tx *gorm.DB) error {
+	err = i.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Delete related issue relationships first using issue id
 		if err := tx.Where("source_id = ? OR target_id = ?", id, id).Delete(&models.RelatedIssue{}).Error; err != nil {
 			return fmt.Errorf("failed to delete related issues: %w", err)
@@ -296,7 +357,7 @@ func (i *issueRepository) Delete(ctx context.Context, id string) error {
 func (i *issueRepository) ResolveByScope(ctx context.Context, resourceType, resourceName, namespace string) (int64, error) {
 	now := time.Now()
 
-	result := i.db.Model(&models.Issue{}).
+	result := i.db.WithContext(ctx).Model(&models.Issue{}).
 		Joins("JOIN issue_scopes ON issues.scope_id = issue_scopes.id").
 		Where("issues.state = ? AND issues.namespace = ?", models.IssueStateActive, namespace).
 		Where("issue_scopes.resource_type = ? AND issue_scopes.resource_name = ?", resourceType, resourceName).
@@ -339,7 +400,7 @@ func (i *issueRepository) AddRelatedIssue(ctx context.Context, sourceID, targetI
 
 	// Check if relationship already exists
 	var existingRelation models.RelatedIssue
-	err = i.db.Where("(source_id = ? AND target_id = ?) OR (source_id = ? AND target_id = ?)",
+	err = i.db.WithContext(ctx).Where("(source_id = ? AND target_id = ?) OR (source_id = ? AND target_id = ?)",
 		sourceID, targetID, targetID, sourceID).First(&existingRelation).Error
 
 	if err == nil {
@@ -356,7 +417,7 @@ func (i *issueRepository) AddRelatedIssue(ctx context.Context, sourceID, targetI
 		TargetID: targetID,
 	}
 
-	if err := i.db.Create(&relation).Error; err != nil {
+	if err := i.db.WithContext(ctx).Create(&relation).Error; err != nil {
 		i.logger.WithError(err).Error("Failed to add related issue")
 		return fmt.Errorf("failed to create relationship: %w", err)
 	}
@@ -370,7 +431,7 @@ func (i *issueRepository) AddRelatedIssue(ctx context.Context, sourceID, targetI
 
 // RemoveRelatedIssue removes a relationship between issues
 func (i *issueRepository) RemoveRelatedIssue(ctx context.Context, sourceID, targetID string) error {
-	result := i.db.Where("(source_id = ? AND target_id = ?) OR (source_id = ? AND target_id = ?)",
+	result := i.db.WithContext(ctx).Where("(source_id = ? AND target_id = ?) OR (source_id = ? AND target_id = ?)",
 		sourceID, targetID, targetID, sourceID).Delete(&models.RelatedIssue{})
 
 	if result.Error != nil {
