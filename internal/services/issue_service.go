@@ -189,7 +189,7 @@ func (s *IssueService) CreateIssue(req dto.CreateIssueRequest) (*models.Issue, e
 	}
 
 	// Set resource namespace to match issue namespace if not provided
-	resourceNamespace := req.Scope.ResourceName
+	resourceNamespace := req.Scope.ResourceNamespace
 	if resourceNamespace == "" {
 		resourceNamespace = req.Namespace
 	}
