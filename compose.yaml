@@ -14,10 +14,10 @@ services:
       db:
         # Ensure the DB is ready before the app
         condition: service_healthy
-    environment:
-      - DB_HOST=db
-      - PROJECT_ENV=development
-      - DATABASE_URL=postgres://kite:postgres@db:5432/issuesdb?sslmode=disable
+    #    environment:
+    #      - DB_HOST=db
+    #      - PROJECT_ENV=development
+    #      - DATABASE_URL=postgres://kite:postgres@db:5432/issuesdb?sslmode=disable
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]

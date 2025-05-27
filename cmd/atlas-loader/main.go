@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"ariga.io/atlas-provider-gorm/gormschema"
-	"github.com/CryptoRodeo/kite/internal/models"
+	"github.com/konflux-ci/kite/internal/models"
 )
 
 func main() {

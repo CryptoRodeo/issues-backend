@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
-	"github.com/CryptoRodeo/kite/internal/config"
-	"github.com/CryptoRodeo/kite/internal/seed"
 	"github.com/joho/godotenv"
+	"github.com/konflux-ci/kite/internal/config"
+	"github.com/konflux-ci/kite/internal/seed"
 	"github.com/sirupsen/logrus"
 )
 

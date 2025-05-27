@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 
-	"github.com/CryptoRodeo/kite/internal/handlers/dto"
-	"github.com/CryptoRodeo/kite/internal/models"
+	"github.com/konflux-ci/kite/internal/handlers/dto"
+	"github.com/konflux-ci/kite/internal/models"
 )
 
 type IssueRepository interface {

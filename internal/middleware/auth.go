@@ -30,7 +30,8 @@ func NewNamespaceChecker(logger *logrus.Logger) (*NamespaceChecker, error) {
 	var kubeconfigPath string
 	cwd, cwdErr := os.Getwd()
 	if cwdErr == nil {
-		kubeconfigPath = filepath.Join(cwd, "config", "kubeconfig.yaml")
+		kubeconfigPath = filepath.Join(cwd, "configs", "kube-config.yaml")
+		logger.Infof("Using path %s", kubeconfigPath)
 		if _, statErr := os.Stat(kubeconfigPath); statErr != nil {
 			// Reset, look elsewhere
 			kubeconfigPath = ""

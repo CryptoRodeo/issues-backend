@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	"github.com/CryptoRodeo/kite/internal/models"
+	"github.com/konflux-ci/kite/internal/models"
 )
 
 // DTOs (Data Transfer Objects)

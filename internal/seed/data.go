@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CryptoRodeo/kite/internal/models"
+	"github.com/konflux-ci/kite/internal/models"
 	"gorm.io/gorm"
 )
 

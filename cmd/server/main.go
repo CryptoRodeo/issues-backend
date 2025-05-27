@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/CryptoRodeo/kite/internal/config"
-	handler_http "github.com/CryptoRodeo/kite/internal/handlers/http"
 	"github.com/joho/godotenv"
+	"github.com/konflux-ci/kite/internal/config"
+	handler_http "github.com/konflux-ci/kite/internal/handlers/http"
 	"github.com/sirupsen/logrus"
 )
 

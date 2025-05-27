@@ -1,8 +1,12 @@
 # Build stage
-FROM golang:1.24-alpine AS builder
+#FROM golang:1.24-alpine AS builder
+FROM registry.redhat.io/rhel9/go-toolset AS builder
+
+# Set root user to install build dependencies
+USER root
 
 # Install git for go modules
-RUN apk add --no-cache git ca-certificates tzdata curl
+RUN dnf install -y git
 
 # Set working directory
 WORKDIR /build
@@ -19,7 +23,7 @@ COPY . .
 # Notes:
 #
 # CGO_ENABLED=0
-# - Turn off C-Go integratin, don't use any C code libraries
+# - Turn off C-Go integration, don't use any C code libraries
 # This keeps the program self-contained and portable.
 #
 # GOOS=linux
@@ -32,17 +36,15 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -o server cmd/server/main.go
 RUN CGO_ENABLED=0 GOOS=linux go build -a -o seeder cmd/seed/main.go
 
 # Final stage
-FROM alpine:latest
+FROM registry.redhat.io/rhel9/go-toolset
 
-# Install ca-certificates for HTTPS requests, postgresql-client for database operations, and Atlas CLI
-RUN apk --no-cache add ca-certificates postgresql-client bash curl && \
+USER root
+
+# Install postgresql and Atlas CLI for database operations
+RUN dnf install -y postgresql bash && \
     curl -sSf https://atlasgo.sh | sh
 
-# Create non-root user
-RUN addgroup -g 1001 appgroup && \
-    adduser -D -u 1001 -G appgroup appuser
-
-WORKDIR /app
+# Default working directory in the base image is /opt/app-root/src , no need to set.
 
 # Copy built binaries
 COPY --from=builder /build/server .
@@ -55,24 +57,25 @@ COPY migrations/ ./migrations/
 # Copy entrypoint script
 COPY scripts/entrypoint.sh .
 
-# Copy timezone data
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
-
 # Set timezone
 ENV TZ=UTC
 
-# Fix line endings and make entrypoint script executable
-RUN chmod +x entrypoint.sh && chown -R appuser:appgroup /app
-
 # Switch to non-root user
-USER appuser
+USER 1001
 
 # Expose port
 EXPOSE 3000
 
+# Copy custom kubeconfig file
+COPY --chown=1001:1001 configs/kube-config.yaml /opt/app-root/src/configs/
+COPY --chown=1001:1001 scripts/entrypoint.sh /opt/app-root/src/
+RUN chmod +x entrypoint.sh
+
+ENV PROJECT_ENV="development"
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+    CMD  curl --fail --silent http://localhost:3000/health || exit 1
 
 # Use entrypoint script
 ENTRYPOINT ["./entrypoint.sh"]

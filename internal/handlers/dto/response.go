@@ -1,6 +1,6 @@
 package dto
 
-import "github.com/CryptoRodeo/kite/internal/models"
+import "github.com/konflux-ci/kite/internal/models"
 
 // DTOs (Data Transfer Objects)
 // These allow us to carry and format data between layers or services, without embedding any business logic.

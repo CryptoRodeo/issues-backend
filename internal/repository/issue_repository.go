@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CryptoRodeo/kite/internal/handlers/dto"
-	"github.com/CryptoRodeo/kite/internal/models"
+	"github.com/konflux-ci/kite/internal/handlers/dto"
+	"github.com/konflux-ci/kite/internal/models"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )

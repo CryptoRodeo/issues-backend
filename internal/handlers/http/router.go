@@ -1,10 +1,10 @@
 package http
 
 import (
-	"github.com/CryptoRodeo/kite/internal/middleware"
-	"github.com/CryptoRodeo/kite/internal/repository"
-	"github.com/CryptoRodeo/kite/internal/services"
 	"github.com/gin-gonic/gin"
+	"github.com/konflux-ci/kite/internal/middleware"
+	"github.com/konflux-ci/kite/internal/repository"
+	"github.com/konflux-ci/kite/internal/services"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
