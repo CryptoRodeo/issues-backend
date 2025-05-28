@@ -1,75 +1,56 @@
-# Build stage
-FROM registry.redhat.io/rhel9/go-toolset AS builder
+FROM registry.redhat.io/ubi9/nodejs-22:latest
 
+# Set root user to install dependencies
 USER root
 
-# Install minimal build dependencies
-RUN dnf install -y git && \
-    dnf clean all
+# Install dev dependencies
+RUN dnf install -y nc postgresql
 
-WORKDIR /build
-
-# Copy go mod files
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy source code
-COPY . .
-
-# Build with optimization flags to reduce binary size
-#
-# CGO_ENABLED=0 - Turn off C-Go integration. 
-# This allows the app to
-# - be a self-contained binary that doesnt need external C libraries
-# - work on any linux system
-# - be used in a small, portable container
-#
-# GOOS=linux sets the target OS (Linux)
-#
-# -a Force rebuilds all packages
-#
-# -ldflags="-w -s" passesflags to the linker to make smaller binaries
-# -w = removing debugging information
-# -s = remove symbol table
-RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags="-w -s" -o server cmd/server/main.go
-RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags="-w -s" -o seeder cmd/seed/main.go
-
-# Runtime stage - use minimal RHEL image
-FROM registry.redhat.io/ubi9/ubi-minimal
-
-# Install only runtime dependencies
-RUN microdnf install -y postgresql && \
-    curl -sSf https://atlasgo.sh | sh && \
-    microdnf clean all && \
-    rm -rf /var/cache/yum
-
-# Create non-root user
-RUN useradd -u 1001 -r -g 0 -s /sbin/nologin appuser
-
-WORKDIR /opt/app-root/src
-
-# Copy built binaries
-COPY --from=builder /build/server .
-COPY --from=builder /build/seeder .
-
-# Copy necessary files
-COPY atlas.hcl .
-COPY migrations/ ./migrations/
-COPY scripts/entrypoint.sh .
-COPY --chown=1001:0 configs/kube-config.yaml /opt/app-root/src/configs/
-
-# Set permissions and timezone
-RUN chmod +x entrypoint.sh && \
-    chown -R 1001:0 /opt/app-root/src
-
-ENV TZ=UTC
-ENV PROJECT_ENV=development
-
+# Set non-root user
 USER 1001
 
+# The working directory is already set to /opt/app-root/src in the base image
+# No need to set WORKDIR explicitly
+
+RUN node --version
+RUN npm install -g yarn
+RUN yarn --version
+
+# We'll mount the source code from host, so we don't copy it here.
+# Instead, we prepare the container with the right environment.
+
+RUN mkdir -p opt/app-root/src/packages/backend
+
+# Copy package files
+COPY --chown=1001:1001 package.json yarn.lock ./
+COPY --chown=1001:1001 packages/backend/package.json ./packages/backend/
+COPY --chown=1001:1001 packages/backend/prisma ./packages/backend/prisma/
+
+# IMPORTANT: Copy the Prisma files before generating
+COPY packages/backend/prisma ./packages/backend/prisma/
+
+# Install dependencies
+# Generate Prisma client
+RUN yarn install && \
+  cd packages/backend && \
+  npx prisma generate
+
+# Expose port
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl --fail --silent http://localhost:3000/health || exit 1
+# Copy custom kubeconfig file
+COPY --chown=1001:1001 configs/kube-config.yaml /opt/app-root/src/configs/
 
-ENTRYPOINT ["./entrypoint.sh"]
+# Set environment variables to use at runtime
+ENV NODE_ENV=development
+ENV LOG_LEVEL=info
+#ENV KUBECONFIG=/opt/app-root/src/.kube/config
+ENV KUBE_CONFIG_PATH=/opt/app-root/src/configs/kube-config.yaml
+ENV DATABASE_URL="postgresql://kite:postgres@db:5432/issuesdb"
+
+# Start the app with a script that waits for the db
+COPY --chown=1001:1001 scripts/entrypoint.sh /
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+# Run this after entrypoint script
+CMD ["yarn", "dev"]

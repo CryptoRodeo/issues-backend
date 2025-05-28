@@ -1,0 +1,73 @@
+# For this container image we'l do a multi-stage build.
+# This will:
+# - Keep the final image small
+# - Include only the necessary dependencies
+# - Separate build dependencies from runtime dependencies
+
+# Build stage
+FROM registry.redhat.io/ubi9/nodejs-22:latest AS builder
+
+# Set non-root user
+USER 1001
+
+# Default workdir for this base image
+WORKDIR /opt/app-root/src
+
+# Copy package files for dependency installation
+COPY --chown=1001:1001 package.json yarn.lock ./
+COPY --chown=1001:1001 packages/backend/package.json ./packages/backend/
+COPY --chown=1001:1001 packages/backend/prisma ./packages/backend/prisma
+
+# Install yarn
+RUN npm install -g yarn
+
+# Install dependencies
+RUN yarn install --frozen-lockfile
+
+# Copy source code
+COPY --chown=1001:1001 packages/backend ./packages/backend
+
+# Generate Prisma client and build application
+RUN cd packages/backend && \
+    npx prisma generate && \
+    yarn build
+
+# Copy custom kubeconfig file
+COPY --chown=1001:1001 configs/kube-config.yaml /opt/app-root/src/configs/
+
+# Runtime stage
+FROM registry.redhat.io/ubi9/nodejs-22-minimal:latest
+
+USER root
+# Install only the minimal runtime dependencies
+RUN microdnf install -y nc postgresql && microdnf clean all
+
+# Set non-root user
+USER 1001
+
+WORKDIR /opt/app-root/src
+
+# Copy build applciation and dependencies from builder stage
+COPY --from=builder --chown=1001:1001 /opt/app-root/src/packages/backend/dist ./dist
+COPY --from=builder --chown=1001:1001 /opt/app-root/src/packages/backend/prisma ./prisma
+COPY --from=builder --chown=1001:1001 /opt/app-root/src/packages/backend/node_modules ./node_modules
+COPY --from=builder --chown=1001:1001 /opt/app-root/src/node_modules ./node_modules
+COPY --from=builder --chown=1001:1001 /opt/app-root/src/configs ./configs
+
+# Copy the entrypoint script
+COPY --chown=1001:1001 scripts/entrypoint.sh ./
+RUN chmod +x ./entrypoint.sh
+
+# Set ENV variables
+ENV NODE_ENV=production
+ENV LOG_LEVEL=info
+ENV PORT=3000
+#ENV KUBECONFIG=/opt/app-root/src/.kube/config
+ENV KUBE_CONFIG_PATH=/opt/app-root/src/configs/kube-config.yaml
+
+# Expose port
+EXPOSE 3000
+
+# Use production entrypoint
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["node", "dist/server.js"]
